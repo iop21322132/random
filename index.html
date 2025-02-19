@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Колесо Фортуны</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+      font-family: Arial, sans-serif;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .wheel-container {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      margin-bottom: 20px;
+    }
+    .wheel {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: conic-gradient(
+        red 0% 8.33%,
+        orange 8.33% 16.66%,
+        yellow 16.66% 25%,
+        lime 25% 33.33%,
+        rgb(228, 77, 97) 33.33% 41.66%,
+        teal 41.66% 50%,
+        cyan 50% 58.33%,
+        blue 58.33% 66.66%,
+        purple 66.66% 75%,
+        rgb(136, 255, 0) 75% 83.33%,
+        pink 83.33% 91.66%,
+        rgb(3, 91, 255) 91.66% 100%
+      );
+      border: 2px solid #000;
+      position: relative;
+      transition: transform 5s ease-out;
+      overflow: hidden;
+    }
+    .wheel::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      background: black;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+    /* Стрелка */
+    .arrow {
+      position: absolute;
+      top: -20px; /* Расположение стрелки сверху колеса */
+      left: 50%;
+      transform: translateX(-50%) rotate(180deg); /* Переворачиваем стрелку на 180 градусов */
+      width: 0;
+      height: 0;
+      border-left: 15px solid transparent;
+      border-right: 15px solid transparent;
+      border-bottom: 30px solid black; /* Цвет стрелки */
+      z-index: 1; /* Чтобы стрелка была поверх колеса */
+    }
+    .spin-button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      margin-bottom: 10px; /* Отступ для текста с попытками */
+    }
+    .attempts {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 20px;
+    }
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7); /* Серый затемненный фон */
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .image-container {
+      opacity: 0;
+      transform: scale(0.5);
+      animation: fadeIn 0.5s ease-out forwards;
+      width: 350px; /* Фиксированная ширина */
+      height: 450px; /* Фиксированная высота */
+      border: 5px solid white; /* Граница вокруг картинки */
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      overflow: hidden; /* Чтобы картинка не выходила за границы */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: black; /* Фон контейнера */
+      position: relative;
+    }
+    .image-container img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain; /* Сохраняем пропорции картинки */
+    }
+    .buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      justify-content: center;
+    }
+    .buttons button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+    }
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+        transform: scale(0.5);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wheel-container">
+    <div class="arrow"></div> <!-- Стрелка -->
+    <div class="wheel" id="wheel"></div>
+  </div>
+  <button class="spin-button" id="spinButton">Крутить!</button>
+  <div class="attempts" id="attemptsText">Осталось попыток: 3</div>
+
+  <!-- Затемненный фон и контейнер для картинки -->
+  <div class="overlay" id="overlay">
+    <div class="image-container" id="imageContainer">
+      <img id="resultImage" src="" alt="Результат">
+    </div>
+    <div class="buttons" id="buttons">
+      <button id="continueButton">Продолжить</button>
+      <button id="takeButton">Забрать</button>
+    </div>
+  </div>
+
+  <script>
+    const wheel = document.getElementById('wheel');
+    const spinButton = document.getElementById('spinButton');
+    const overlay = document.getElementById('overlay');
+    const resultImage = document.getElementById('resultImage');
+    const continueButton = document.getElementById('continueButton');
+    const takeButton = document.getElementById('takeButton');
+    const attemptsText = document.getElementById('attemptsText');
+    let isSpinning = false;
+    let currentRotation = 0;
+    let attemptsLeft = 3; // Начальное количество попыток
+
+    // Функция для обновления текста с попытками
+    function updateAttemptsText() {
+      attemptsText.textContent = `Осталось попыток: ${attemptsLeft}`;
+    }
+
+    // Функция для вращения колеса
+    function spinWheel() {
+      if (isSpinning || attemptsLeft <= 0) return;
+
+      isSpinning = true;
+      spinButton.disabled = true;
+
+      const randomSpin = Math.floor(Math.random() * 3600) + 720; // Случайное вращение
+      currentRotation += randomSpin;
+
+      wheel.style.transform = `rotate(${currentRotation}deg)`;
+
+      // Уменьшаем количество попыток
+      attemptsLeft--;
+      updateAttemptsText();
+
+      // Показываем случайную картинку после остановки
+      setTimeout(() => {
+        const randomImageIndex = Math.floor(Math.random() * 12) + 1; // Случайное число от 1 до 12
+        showResult(randomImageIndex); // Показываем картинку
+      }, 5000); // Ждем завершения анимации
+    }
+
+    // Функция для показа картинки
+    function showResult(imageIndex) {
+      // Устанавливаем картинку
+      resultImage.src = `images/image${imageIndex}.jpg`; // Путь к изображениям в папке images
+
+      // Показываем затемненный фон и картинку
+      overlay.style.display = 'flex';
+      setTimeout(() => {
+        document.getElementById('imageContainer').style.opacity = 1;
+      }, 10);
+
+      // Показываем кнопки
+      continueButton.style.display = 'inline-block';
+      takeButton.style.display = 'inline-block';
+    }
+
+    // Функция для скрытия картинки и кнопок
+    function hideResult() {
+      const imageContainer = document.getElementById('imageContainer');
+      imageContainer.style.animation = 'fadeOut 0.5s ease-out forwards';
+
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        imageContainer.style.opacity = 0;
+        imageContainer.style.animation = '';
+        isSpinning = false;
+        spinButton.disabled = false;
+      }, 500); // Ждем завершения анимации
+    }
+
+    // Обработчик для кнопки "Продолжить"
+    continueButton.addEventListener('click', () => {
+      hideResult();
+    });
+
+    // Обработчик для кнопки "Забрать"
+    takeButton.addEventListener('click', () => {
+      resultImage.src = `images/image13.png`; // Всегда показываем image13.png
+      continueButton.style.display = 'none'; // Скрываем кнопку "Продолжить"
+      takeButton.style.display = 'none'; // Скрываем кнопку "Забрать"
+
+      // Плавная анимация появления картинки
+      const imageContainer = document.getElementById('imageContainer');
+      imageContainer.style.animation = 'fadeIn 0.5s ease-out forwards';
+    });
+
+    // Убираем закрытие картинки при клике на затемненный фон
+    overlay.addEventListener('click', (event) => {
+      event.stopPropagation(); // Останавливаем всплытие события
+    });
+
+    spinButton.addEventListener('click', spinWheel);
+
+    // Инициализация текста с попытками
+    updateAttemptsText();
+  </script>
+</body>
+</html>
