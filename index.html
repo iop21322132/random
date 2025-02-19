@@ -175,10 +175,10 @@
     const attemptsText = document.getElementById('attemptsText');
     let isSpinning = false;
     let currentRotation = 0;
-    let attemptsLeft = 3; // Начальное количество попыток
-
+    let attemptsLeft = localStorage.getItem('attemptsLeft') ? parseInt(localStorage.getItem('attemptsLeft')) : 3;
     // Функция для обновления текста с попытками
     function updateAttemptsText() {
+      localStorage.setItem('attemptsLeft', attemptsLeft);
       attemptsText.textContent = `Осталось попыток: ${attemptsLeft}`;
     }
 
